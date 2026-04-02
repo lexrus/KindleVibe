@@ -202,7 +202,7 @@ KindleVibe's exchange-rate integration is inspired by [exchange-api](https://git
 
 > ⚠️ **AI Development Notice**: This project was heavily developed using AI tools including [Claude Code](https://claude.ai/code) and [Windsurf](https://windsurf.com/refer?referral_code=bfc775d405). It brings potential legal and ethical concerns, so use it with caution and always review the generated code.
 
-![Dolores was privately chatting with Arnold. - HBO/Westworld](screenshots/ai_injected_photo.webp)
+![Dolores was privately chatting with Arnold. - HBO/Westworld](https://github.com/lexrus/AppAboutView/raw/main/screenshots/ai_injected_photo.webp)
 
 > "You’re not in control, Dolores. You’re just playing your part."
 > -- Bernard Lowe, WestWorld S2E2
