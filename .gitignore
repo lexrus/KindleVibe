@@ -1,0 +1,9 @@
+kindlevibe
+*.exe
+*.out
+*.test
+coverage.out
+.DS_Store
+.idea/
+.vscode/
+.codex/

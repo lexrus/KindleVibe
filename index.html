@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="10" />
+    <title>KindleVibe</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        color: #000;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: "Courier New", Courier, monospace;
+        letter-spacing: 0.04em;
+      }
+
+      .frame {
+        width: auto;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 12px 14px 12px 14px;
+      }
+
+      .provider {
+        border: 3px solid #1d1d1b;
+        padding: 10px 12px 2px 12px;
+        margin-bottom: 10px;
+      }
+
+      .provider-header {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+      }
+
+      .provider-name {
+        color: #000;
+        font-size: 25px;
+        font-weight: bold;
+        line-height: 40px;
+        text-align: left;
+      }
+
+      .provider-detail {
+        color: #333;
+        font-size: 15px;
+        line-height: 16px;
+        text-align: right;
+      }
+
+      .bar-row {
+        margin-bottom: 10px;
+      }
+
+      .bar-label {
+        color: #666;
+        font-size: 17px;
+        line-height: 18px;
+        text-align: left;
+        margin-bottom: 3px;
+      }
+
+      .bar-layout {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .bar-layout td {
+        vertical-align: middle;
+      }
+
+      .bar-track-cell {
+        width: 100%;
+        padding-right: 10px;
+      }
+
+      .bar-value-number {
+        font-size: 28px;
+        line-height: 34px;
+        letter-spacing: 0;
+      }
+
+      .bar-value-unit {
+        color: #6d6965;
+        font-size: 15px;
+        line-height: 15px;
+        vertical-align: top;
+        padding-left: 4px;
+      }
+
+      .bar-track {
+        width: 100%;
+        font-size: 0;
+        line-height: 0;
+        white-space: nowrap;
+      }
+
+      .segment {
+        display: inline-block;
+        width: 8px;
+        height: 16px;
+        margin-right: 1px;
+        background: #d6d2cc;
+      }
+
+      .segment.last {
+        margin-right: 0;
+      }
+
+      .segment.filled {
+        background: #1d1d1b;
+      }
+
+      .bar-meta {
+        color: #6d6965;
+        font-size: 12px;
+        line-height: 14px;
+        min-height: 14px;
+      }
+
+      .divider {
+        height: 2px;
+        background: #c8c3bc;
+        margin: 12px 0 10px 0;
+      }
+
+      .rate-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .rate-table td {
+        font-size: 20px;
+        line-height: 30px;
+        padding: 0;
+      }
+
+      .rate-pair {
+        color: #6d6965;
+        text-align: left;
+      }
+
+      .rate-value {
+        color: #1d1d1b;
+        text-align: right;
+      }
+
+      .rates-empty,
+      .footer {
+        color: #6d6965;
+        font-size: 12px;
+        line-height: 14px;
+      }
+
+      .footer {
+        margin-top: 8px;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      {{ range .Providers }}
+      <div class="provider">
+        <table class="provider-header">
+          <tr>
+            <td class="provider-name">{{ .Name }}</td>
+            <td class="provider-detail">{{ .Detail }}</td>
+          </tr>
+        </table>
+
+        {{ range .Bars }}
+        <div class="bar-row">
+          <div class="bar-label">{{ .Label }}</div>
+          <table class="bar-layout">
+            <tr>
+              <td class="bar-track-cell">
+                <div class="bar-track">
+                  {{ range $index, $segment := .Segments }}
+                  <span
+                    class="segment{{ if $segment.Filled }} filled{{ end }}{{ if eq $index 47 }} last{{ end }}"
+                  ></span>
+                  {{ end }}
+                </div>
+              </td>
+              <td class="bar-value">
+                <span class="bar-value-number">{{ .PercentText }}</span>
+                <span class="bar-value-unit">%</span>
+              </td>
+            </tr>
+          </table>
+          <div class="bar-meta">{{ .Meta }}</div>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+
+      <div class="divider"></div>
+
+      {{ if .Rates }}
+      <table class="rate-table">
+        {{ range .Rates }}
+        <tr>
+          <td class="rate-pair">{{ .Pair }}</td>
+          <td class="rate-value">{{ .Value }}</td>
+        </tr>
+        {{ end }}
+      </table>
+      {{ else }}
+      <div class="rates-empty">RATES UNAVAILABLE</div>
+      {{ end }}
+
+      <div class="footer">SYNC {{ .Time }}</div>
+    </div>
+  </body>
+</html>
