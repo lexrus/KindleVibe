@@ -7,32 +7,100 @@
     <script>
       var refreshTimer = null;
 
-      function scheduleRefresh() {
-        clearRefresh();
-        refreshTimer = setTimeout(function () {
-          if (!location.hash || location.hash === "#") {
-            window.location.reload();
-          }
-        }, 10000);
-      }
+      function applyLinearCap(root) {
+        var providers = root.querySelectorAll('.provider');
+        for (var i = 0; i < providers.length; i++) {
+          var nameEl = providers[i].querySelector('.provider-name');
+          if (!nameEl || nameEl.textContent.trim() !== 'LINEAR') continue;
 
-      function clearRefresh() {
-        if (refreshTimer) {
-          clearTimeout(refreshTimer);
-          refreshTimer = null;
+          var listRows = providers[i].querySelectorAll('.list-row');
+          var ipRow = null, todoRow = null;
+          for (var j = 0; j < listRows.length; j++) {
+            var titleEl = listRows[j].querySelector('.list-title');
+            var title = titleEl ? titleEl.textContent.trim() : '';
+            var its = listRows[j].querySelectorAll('[data-lv-item]');
+            if (title === 'IN PROGRESS') ipRow = { el: listRows[j], items: its };
+            else if (title === 'TODO') todoRow = { el: listRows[j], items: its };
+          }
+
+          var hasIP = ipRow && ipRow.items.length > 0;
+          var hasTodo = todoRow && todoRow.items.length > 0;
+
+          function showItems(items, n) {
+            for (var m = 0; m < items.length; m++) {
+              items[m].style.display = m < n ? '' : 'none';
+            }
+          }
+
+          if (hasIP && hasTodo) {
+            var ipCount = ipRow.items.length;
+            if (ipCount >= 5) {
+              showItems(ipRow.items, 5);
+              todoRow.el.style.display = 'none';
+            } else {
+              var ipShow = Math.min(ipCount, 4);
+              var todoShow = 4 - ipShow;
+              showItems(ipRow.items, ipShow);
+              if (todoShow === 0) {
+                todoRow.el.style.display = 'none';
+              } else {
+                todoRow.el.style.display = '';
+                showItems(todoRow.items, todoShow);
+              }
+            }
+          } else if (hasIP) {
+            showItems(ipRow.items, 5);
+            if (todoRow) todoRow.el.style.display = 'none';
+          } else if (hasTodo) {
+            if (ipRow) ipRow.el.style.display = 'none';
+            showItems(todoRow.items, 5);
+          }
+
+          break;
         }
       }
 
-      function updateRefreshState() {
+      function pollFragment() {
         if (location.hash && location.hash.indexOf("#task-") === 0) {
-          clearRefresh();
+          scheduleNext();
           return;
         }
-        scheduleRefresh();
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/fragment", true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              if (!location.hash || location.hash.indexOf("#task-") !== 0) {
+                var frame = document.querySelector(".frame");
+                frame.innerHTML = xhr.responseText;
+                applyLinearCap(frame);
+              }
+            }
+            scheduleNext();
+          }
+        };
+        xhr.onerror = function () {
+          scheduleNext();
+        };
+        xhr.send();
       }
 
-      window.addEventListener("load", updateRefreshState);
-      window.addEventListener("hashchange", updateRefreshState);
+      function scheduleNext() {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(pollFragment, 15000);
+      }
+
+      window.addEventListener("load", function () {
+        applyLinearCap(document.querySelector('.frame'));
+        scheduleNext();
+      });
+
+      window.addEventListener("hashchange", function () {
+        if (!location.hash || location.hash.indexOf("#task-") !== 0) {
+          clearTimeout(refreshTimer);
+          pollFragment();
+        }
+      });
     </script>
     <style>
       html,
@@ -438,6 +506,11 @@
   </head>
   <body>
     <div class="frame">
+      {{template "frame-content" .}}
+    </div>
+  </body>
+</html>
+{{define "frame-content"}}
       {{/* Split providers into bar-type (Copilot/Codex) and list-type (Linear)
       */}} {{ $barProviders := slice }} {{ $listProviders := slice }} {{ range
       .Providers }} {{ if .Lists }} {{ $listProviders = append $listProviders .
@@ -524,7 +597,7 @@
         <div class="list-row">
           <div class="list-title">{{ .Title }}</div>
           {{ range .Items }}
-          <div class="list-item">
+          <div class="list-item"{{ if .Identifier }} data-lv-item{{ end }}>
             {{ if .Identifier }}
             <form method="POST" action="/linear/done">
               <input type="hidden" name="id" value="{{ .Identifier }}" />
@@ -630,6 +703,4 @@
       {{ end }}
 
       <div class="footer">SYNC {{ .Time }}</div>
-    </div>
-  </body>
-</html>
+{{end}}

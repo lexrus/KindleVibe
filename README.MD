@@ -8,7 +8,7 @@ KindleVibe is a small local Go server that shows GitHub Copilot, Codex, and Line
 
 - **Kindle optimized:** Minimal, high-contrast UI for e-ink browsers.
 - **Portrait dashboard:** Single-screen layout tuned for a 1080 x 1440 Kindle display.
-- **Auto-refresh:** Refreshes every 10 seconds with standard HTML meta refresh.
+- **Auto-refresh:** Refreshes every 15 seconds with a background XHR poll.
 - **Current providers:** GitHub Copilot, Codex, Linear, and Gemini.
 - **Exchange snapshot:** Configurable via `config.yaml` to display up to 2 columns of exchange rates at the bottom. Default includes BTC/USD, USD/CNY, AUD/CNY, JPY/CNY, CAD/CNY, and HKD/CNY.
 - **Local-only:** Reads usage from local auth state and local session files.
@@ -97,6 +97,19 @@ Your local `config.yaml` can also include `agents.copilot.token` and `agents.lin
 ## Data Sources
 
 KindleVibe reads provider data when the `/` page is requested. For each enabled provider, `main.go` tries to build an `AgentStats` block and logs errors instead of failing the whole page, so one broken provider does not stop the dashboard from rendering.
+
+### Refresh and Rate-Limit Thresholds
+
+KindleVibe throttles upstream requests to avoid hammering external services on every page refresh:
+
+| Provider | Min interval between requests |
+|---|---|
+| GitHub Copilot | 2 minutes |
+| Codex | 2 minutes |
+| Gemini | 2 minutes |
+| Exchange rates | 10 minutes |
+
+Between fetches the dashboard renders the last known values. Linear issues are always fetched fresh on each dashboard rebuild since they reflect live task state.
 
 ### GitHub Copilot
 

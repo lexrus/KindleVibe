@@ -260,6 +260,53 @@ const (
 	meterSegments           = 10
 	linearListMax           = 10
 	linearCompletedCacheTTL = time.Minute
+	agentRefreshInterval    = 2 * time.Minute
+	currencyRefreshInterval = 10 * time.Minute
+)
+
+// agentThrottleCache caches one provider's stats and suppresses re-fetches within the TTL.
+type agentThrottleCache struct {
+	mu        sync.Mutex
+	stats     AgentStats
+	err       error
+	fetchedAt time.Time
+}
+
+func (c *agentThrottleCache) get(ttl time.Duration, fetch func() (AgentStats, error)) (AgentStats, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.fetchedAt.IsZero() && time.Since(c.fetchedAt) < ttl {
+		return c.stats, c.err
+	}
+	c.stats, c.err = fetch()
+	c.fetchedAt = time.Now()
+	return c.stats, c.err
+}
+
+// exchangeThrottleCache caches exchange rate rows and suppresses re-fetches within the TTL.
+type exchangeThrottleCache struct {
+	mu        sync.Mutex
+	rows      []ExchangeRateRow
+	err       error
+	fetchedAt time.Time
+}
+
+func (c *exchangeThrottleCache) get(ttl time.Duration, fetch func() ([]ExchangeRateRow, error)) ([]ExchangeRateRow, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.fetchedAt.IsZero() && time.Since(c.fetchedAt) < ttl {
+		return c.rows, c.err
+	}
+	c.rows, c.err = fetch()
+	c.fetchedAt = time.Now()
+	return c.rows, c.err
+}
+
+var (
+	copilotThrottle  agentThrottleCache
+	codexThrottle    agentThrottleCache
+	geminiThrottle   agentThrottleCache
+	currencyThrottle exchangeThrottleCache
 )
 
 // expandPath resolves shell-style home and environment references in local file paths.
@@ -465,23 +512,15 @@ func fetchLinearStats(cfg *Config) (AgentStats, error) {
 	todoNodes := result.Data.Todo.Nodes
 	inProgressNodes := result.Data.InProgress.Nodes
 
-	todoLimit := 4
-	inProgressLimit := 4
-
-	if len(todoNodes) > 0 && len(inProgressNodes) > 0 {
-		todoLimit = 3
-		inProgressLimit = 3
-	}
-
 	if len(inProgressNodes) > 0 {
-		stats.Lists = append(stats.Lists, linearIssueList("In Progress", inProgressNodes, inProgressLimit))
+		stats.Lists = append(stats.Lists, linearIssueList("In Progress", inProgressNodes, linearListMax))
 	}
 	if len(todoNodes) > 0 {
-		stats.Lists = append(stats.Lists, linearIssueList("Todo", todoNodes, todoLimit))
+		stats.Lists = append(stats.Lists, linearIssueList("Todo", todoNodes, linearListMax))
 	}
 
 	if len(stats.Lists) == 0 {
-		stats.Lists = append(stats.Lists, linearIssueList("Todo", nil, 5))
+		stats.Lists = append(stats.Lists, linearIssueList("Todo", nil, linearListMax))
 	}
 
 	return stats, nil
@@ -1785,14 +1824,18 @@ func buildDashboardData(cfg *Config) DashboardData {
 	var agents []AgentStats
 
 	if cfg.Agents.Copilot.Enabled {
-		s, err := fetchCopilotStats(cfg)
+		s, err := copilotThrottle.get(agentRefreshInterval, func() (AgentStats, error) {
+			return fetchCopilotStats(cfg)
+		})
 		if err != nil {
 			log.Printf("Copilot Error: %v", err)
 		}
 		agents = append(agents, s)
 	}
 	if cfg.Agents.Codex.Enabled {
-		s, err := fetchCodexStats()
+		s, err := codexThrottle.get(agentRefreshInterval, func() (AgentStats, error) {
+			return fetchCodexStats()
+		})
 		if err != nil {
 			log.Printf("Codex Error: %v", err)
 		}
@@ -1806,14 +1849,18 @@ func buildDashboardData(cfg *Config) DashboardData {
 		agents = append(agents, s)
 	}
 	if cfg.Agents.Gemini.Enabled {
-		s, err := fetchGeminiStats()
+		s, err := geminiThrottle.get(agentRefreshInterval, func() (AgentStats, error) {
+			return fetchGeminiStats()
+		})
 		if err != nil {
 			log.Printf("Gemini Error: %v", err)
 		}
 		agents = append(agents, s)
 	}
 
-	rates, err := fetchExchangeRates(cfg)
+	rates, err := currencyThrottle.get(currencyRefreshInterval, func() ([]ExchangeRateRow, error) {
+		return fetchExchangeRates(cfg)
+	})
 	if err != nil {
 		log.Printf("Rates Error: %v", err)
 	}
@@ -1964,7 +2011,16 @@ func main() {
 			}
 		}
 
+		fragmentHandler := func(w http.ResponseWriter, r *http.Request) {
+			data := cache.getOrRefresh(cfg)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if err := tmpl.ExecuteTemplate(w, "frame-content", data); err != nil {
+				log.Printf("Fragment Execute Error: %v", err)
+			}
+		}
+
 		http.HandleFunc("/", handler)
+		http.HandleFunc("/fragment", fragmentHandler)
 		http.HandleFunc("/linear/done", linearDoneHandler(cfg, cache))
 		addr := fmt.Sprintf(":%d", cfg.Server.Port)
 		fmt.Printf("Starting KindleVibe server on http://localhost%s\n", addr)
