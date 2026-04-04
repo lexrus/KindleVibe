@@ -464,10 +464,27 @@ func fetchLinearStats(cfg *Config) (AgentStats, error) {
 
 	// Detail intentionally left blank – assignee is not shown.
 
-	stats.Lists = append(stats.Lists,
-		linearIssueList("Todo", result.Data.Todo.Nodes),
-		linearIssueList("In Progress", result.Data.InProgress.Nodes),
-	)
+	todoNodes := result.Data.Todo.Nodes
+	inProgressNodes := result.Data.InProgress.Nodes
+
+	todoLimit := 5
+	inProgressLimit := 5
+
+	if len(todoNodes) > 0 && len(inProgressNodes) > 0 {
+		todoLimit = 4
+		inProgressLimit = 4
+	}
+
+	if len(inProgressNodes) > 0 {
+		stats.Lists = append(stats.Lists, linearIssueList("In Progress", inProgressNodes, inProgressLimit))
+	}
+	if len(todoNodes) > 0 {
+		stats.Lists = append(stats.Lists, linearIssueList("Todo", todoNodes, todoLimit))
+	}
+
+	if len(stats.Lists) == 0 {
+		stats.Lists = append(stats.Lists, linearIssueList("Todo", nil, 5))
+	}
 
 	return stats, nil
 }
@@ -919,7 +936,7 @@ func resolveLinearToken(configToken string) (string, error) {
 }
 
 // linearIssueList converts Linear issues into compact rows suitable for Kindle width.
-func linearIssueList(title string, nodes []linearIssueNode) AgentList {
+func linearIssueList(title string, nodes []linearIssueNode, max int) AgentList {
 	list := AgentList{Title: title}
 	for _, node := range nodes {
 		text := strings.TrimSpace(node.Title)
@@ -986,7 +1003,7 @@ func linearIssueList(title string, nodes []linearIssueNode) AgentList {
 			URL:         url,
 			Description: description,
 		})
-		if len(list.Items) >= linearListMax {
+		if len(list.Items) >= max {
 			break
 		}
 	}

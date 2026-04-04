@@ -73,22 +73,22 @@
 
       .provider {
         border: 3px solid #1d1d1b;
-        padding: 5px 10px 5px 10px;
+        padding: 3px 10px 3px 10px;
         margin-bottom: 10px;
       }
 
       .provider-name {
         color: #000;
-        font-size: 23px;
+        font-size: 22px;
         font-weight: bold;
-        line-height: 40px;
+        line-height: 32px;
         text-align: left;
         margin-bottom: 4px;
       }
 
       .provider-detail {
-        color: #000;
-        font-size: 15px;
+        color: #ccc;
+        font-size: 16px;
         font-weight: bold;
         line-height: 30px;
         text-align: left;
@@ -402,19 +402,13 @@
         box-sizing: border-box;
       }
 
-      .divider {
-        height: 2px;
-        background: #c8c3bc;
-        margin: 12px 0 10px 0;
-      }
-
       .rate-table {
         width: 100%;
         border-collapse: collapse;
       }
 
       .rate-table td {
-        font-size: 20px;
+        font-size: 18px;
         line-height: 30px;
         padding: 0;
       }
@@ -589,10 +583,7 @@
                   {{ end }}{{ end }}{{ end }}{{ end }}{{ end }}
                 </div>
                 <div class="task-modal-actions">
-                  <form
-                    method="POST"
-                    action="/linear/done"
-                  >
+                  <form method="POST" action="/linear/done">
                     <input type="hidden" name="id" value="{{ .Identifier }}" />
                     <div class="task-modal-complete-box">
                       <button type="submit" class="task-modal-complete">
@@ -611,11 +602,7 @@
         <div class="provider-detail">{{ .Detail }}</div>
         {{ end }}
       </div>
-      {{ end }}
-
-      <div class="divider"></div>
-
-      {{ if .Rates }}
+      {{ end }} {{ if .Rates }}
       <table class="rate-table">
         {{ range .Rates }}
         <tr>
